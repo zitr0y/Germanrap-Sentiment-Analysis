@@ -11,4 +11,6 @@ __pycache__/
 *.gguf
 .claudeignore
 .venv/
-processed_sentences.txt
+2-processed_sentences.txt
+1-posts/*
+1-posts.zip
