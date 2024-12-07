@@ -14,3 +14,6 @@ __pycache__/
 2-processed_sentences.txt
 1-posts/*
 1-posts.zip
+*.txt
+*.zip
+*.png

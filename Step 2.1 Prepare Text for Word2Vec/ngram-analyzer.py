@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import os
+from tqdm import tqdm
 
 # Set up directory to script location
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -37,9 +38,10 @@ def analyze_ngrams(file_path: str, max_n: int = 3, min_count: int = 5) -> Dict[i
         Dictionary mapping n to list of (ngram, count) tuples
     """
     ngram_counters = {n: Counter() for n in range(1, max_n + 1)}
-    
+    total_lines = sum(1 for _ in open(file_path, 'r', encoding='utf-8'))
+
     with open(file_path, 'r', encoding='utf-8') as f:
-        for line in f:
+        for line in tqdm(f, total=total_lines, desc="Analyzing lines", unit="lines", ncols=100):
             line = line.strip()
             if not line:
                 continue
@@ -49,9 +51,11 @@ def analyze_ngrams(file_path: str, max_n: int = 3, min_count: int = 5) -> Dict[i
                 ngram_counters[n].update(ngrams)
     
     results = {}
-    for n, counter in ngram_counters.items():
+    for n, counter in tqdm(ngram_counters.items(), desc="Processing results", 
+                        unit="gram", ncols=100):
         frequent_ngrams = [(ngram, count) 
-                          for ngram, count in counter.items() 
+                          for ngram, count in tqdm(counter.items(), desc="Filtering n-grams", 
+                                                unit="gram", leave=False, ncols=100) 
                           if count >= min_count]
         results[n] = sorted(frequent_ngrams, key=lambda x: (-x[1], x[0]))
     

@@ -2,7 +2,7 @@ import json
 from typing import List, Dict
 import re
 import os
-import tqdm
+from tqdm import tqdm
 import time
 
 # Set up directory to script location
@@ -55,6 +55,10 @@ def clean_text(text: str) -> str:
     # If text is too short or None, filter it out early
     if not text or len(text.strip()) < 10:
         return None
+    
+    text = text.lower()  # Add this line here
+    text = text.replace('ä', 'ae').replace('ö', 'oe').replace('ü', 'ue').replace('ß', 'ss')
+
 
     # First clean HTML entities and common Reddit formatting
     text = re.sub(r'&(?:[a-z\d]+|#\d+|#x[a-f\d]+);', '', text, flags=re.IGNORECASE)
@@ -147,12 +151,37 @@ def clean_text(text: str) -> str:
         'griff griff griff griff griff griff',
         '^^zum ^^letzten ^^thread ^^zu ^^dem ^^thema ^^geht ^^es ^^hier',
         'die beginner haben einmal die line wer hip hop macht aber nur hip hop hört betreibt inzest gedroppt'
-
-
-
+        '!remindme',
+        "I'm high on believing That you're in love with me",
+        'Let me know the names of any other subreddits you want me to post in',
+        'Meiste Upvote Antwort kommt in eine Playlist, sodass man am Ende das Alphabet vollständig hat',
+        'a weekly recap with the top posts and their',
+        '^^^^The ^^^^parent ^^^^commenter ^^^^can ^^^^reply ^^^^with',
+        '(17. oktober 2021*) (10. oktober 2021*) (03. oktober 2021*) (02.',
+        "i'm hooked on a feeling seems i got hooked on a feeling",
+        '1 invite to get free stuff. :)'
     ]):
         return None
-        
+    
+    # Define patterns for unwanted endings
+    end_patterns = [
+        r'[.,!?:;]+$',    # Basic punctuation
+        r'[\'"]+$',       # Quotes
+        r'[)\]}]+$',      # Closing brackets/parens
+        r'[/\\]+$',       # Slashes
+        r'[…]+$',         # Ellipsis
+        r'\s+$'           # Trailing whitespace
+    ]
+    
+    cleaned_words = []
+    for word in text.split():
+        # Apply each pattern to clean word endings
+        cleaned_word = word
+        for pattern in end_patterns:
+            cleaned_word = re.sub(pattern, '', cleaned_word)
+        cleaned_words.append(cleaned_word)
+    text = ' '.join(cleaned_words)
+
     # Count the ratio of alphanumeric characters
     alpha_ratio = sum(c.isalnum() or c.isspace() for c in text) / len(text) if text else 0
     if alpha_ratio < 0.5:
