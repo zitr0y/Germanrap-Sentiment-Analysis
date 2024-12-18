@@ -89,6 +89,9 @@ def clean_text(text: str) -> str:
     # Remove code blocks
     text = re.sub(r'```.*?```', '', text, flags=re.DOTALL)
     text = re.sub(r'`.*?`', '', text)
+
+    # remove brackets
+    text = re.sub(r'[()]', '', text)
     
     # Remove markdown formatting while keeping content
     text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
@@ -159,26 +162,41 @@ def clean_text(text: str) -> str:
         '^^^^The ^^^^parent ^^^^commenter ^^^^can ^^^^reply ^^^^with',
         '(17. oktober 2021*) (10. oktober 2021*) (03. oktober 2021*) (02.',
         "i'm hooked on a feeling seems i got hooked on a feeling",
-        '1 invite to get free stuff. :)'
+        '1 invite to get free stuff. :)',
+        'der:die kuenstler:in zum eigenen werk',
+        'oktober 2021* oktober 2021* oktober 2021*',
+        'welches release hat euch ueberrarscht sowohl positiv als auch negativ?',
+        'januar 2022* januar 2022*',
+        'a message or send me a chat with the text:',
+        'einen track vorschlagen. meiste upvote antwort kommt in eine playlist',
+        'savevideobot',
+        
+
+
+
+
     ]):
         return None
     
-    # Define patterns for unwanted endings
+    # Define patterns for unwanted endings - order matters!
     end_patterns = [
-        r'[.,!?:;]+$',    # Basic punctuation
-        r'[\'"]+$',       # Quotes
-        r'[)\]}]+$',      # Closing brackets/parens
-        r'[/\\]+$',       # Slashes
-        r'[…]+$',         # Ellipsis
-        r'\s+$'           # Trailing whitespace
-    ]
-    
+    r'[.,!?:;&_/\\…]+$',    # Handle single or multiple punctuation marks at the end
+    r'[\'"]+$',              # Quotes
+    r'[)\]}]+$',             # Closing brackets/parens
+    r'\s+$',                 # Trailing whitespace
+    ]   
+
     cleaned_words = []
     for word in text.split():
         # Apply each pattern to clean word endings
         cleaned_word = word
-        for pattern in end_patterns:
-            cleaned_word = re.sub(pattern, '', cleaned_word)
+        while True:
+            old_word = cleaned_word
+            for pattern in end_patterns:
+                cleaned_word = re.sub(pattern, '', cleaned_word)
+            # If no changes were made in this iteration, break
+            if old_word == cleaned_word:
+                break
         cleaned_words.append(cleaned_word)
     text = ' '.join(cleaned_words)
 
@@ -289,7 +307,7 @@ if __name__ == "__main__":
     sentences = process_reddit_files(directory_path, max_files=None)
     
     # Save sentences to a file
-    output_file = "2-processed_sentences.txt"
+    output_file = "2_1-processed_sentences.txt"
     with open(output_file, 'w', encoding='utf-8') as f:
         for sentence in sentences:
             f.write(sentence + '\n')

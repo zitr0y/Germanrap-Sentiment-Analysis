@@ -40,7 +40,7 @@ def create_ngrams(sentences, save=False):
     bigram = Phrases(
         sentences,
         min_count=4,    # Minimum occurrences of bigram
-        threshold=200,   # Higher means fewer phrases
+        threshold=400,   # Higher means fewer phrases
         delimiter='_'
     )
     # Create faster model
@@ -50,7 +50,7 @@ def create_ngrams(sentences, save=False):
     if save:
         # Save bigrams with more detailed information
         with open('bigrams.txt', 'w', encoding='utf-8') as f:
-            f.write("Format: (word1, word2): score\n\n")
+            f.write("Format: (word1_word2): score\n\n")
             for phrase, score in sorted(bigram_model.phrasegrams.items(), key=lambda x: x[1], reverse=True):
                 f.write(f"{phrase}: {score}\n")
         print("Bigrams saved to bigrams.txt")
@@ -70,7 +70,7 @@ def create_ngrams(sentences, save=False):
     if save:
         # Save trigrams with more detailed information
         with open('trigrams.txt', 'w', encoding='utf-8') as f:
-            f.write("Format: (word1_word2, word3) or (word1, word2_word3): score\n\n")
+            f.write("Format: (word1_word2_word3): score\n\n")
             for phrase, score in sorted(trigram_model.phrasegrams.items(), key=lambda x: x[1], reverse=True):
                 f.write(f"{phrase}: {score}\n")
         print("Trigrams saved to trigrams.txt")
@@ -107,7 +107,7 @@ def create_ngrams(sentences, save=False):
 def test_thresholds(sentences):
     """Test different threshold combinations for bigram and trigram creation."""
     # Load artist names and create reference sets
-    with open('../german_hiphop_artists.txt', 'r', encoding='utf-8') as f:
+    with open('../Supporting - List of Rappers/Spotify PLaylist scrape/all_artists.txt', 'r', encoding='utf-8') as f:
         artists = [line.strip() for line in f if line.strip()]
     
     # Create sets of multi-word artists
@@ -117,8 +117,8 @@ def test_thresholds(sentences):
     print(f"Found {len(bigram_artists)} bigram artists and {len(trigram_artists)} trigram artists")
     
     # Test parameters
-    threshold_values = [50, 100, 200, 300, 400]
-    min_count_values = [2, 3, 4, 5]
+    threshold_values = [50, 200, 400]
+    min_count_values = [2, 3, 4]
     
     best_bigram_score = 0
     best_bigram_params = None
@@ -128,8 +128,8 @@ def test_thresholds(sentences):
     results = []
     
     # Test different combinations
-    for threshold in threshold_values:
-        for min_count in min_count_values:
+    for threshold in tqdm(threshold_values, desc="Testing thresholds", ncols=100):
+        for min_count in tqdm(min_count_values, desc="Testing min counts", ncols=100, leave=False):
             print(f"\nTesting threshold={threshold}, min_count={min_count}")
             
             # Create bigrams
@@ -260,7 +260,7 @@ def main():
     print(f"\nTotal time taken: {elapsed_time/60:.2f} minutes")
 
     # 3. Tests - optional    
-    test(sentences)
+    #test(sentences)
 
     return True
     

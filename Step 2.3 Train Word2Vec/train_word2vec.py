@@ -11,24 +11,28 @@ os.chdir(os.path.dirname(os.path.realpath(__file__)))
 
 
 def load_sentences(file_path):
-    # Save sentences with bigrams to a file
     sentences = []
-    with open('2_3-sentences_with_ngrams.txt', 'n', encoding='utf-8') as f:
+    with open(file_path, 'r', encoding='utf-8') as f:
         for line in tqdm(f, desc="Loading lines", unit="lines", ncols=100):
-            sentences.append(line.strip())
+            # Split each line into words and append the resulting list
+            sentences.append(line.strip().split())
     print("Sentences loaded!")
+    return sentences
 
 def train_word2vec(sentences):
     """Train Word2Vec model."""
     print("Training Word2Vec model...")
     model = Word2Vec(
         sentences,
-        vector_size=150,
-        window=8,
-        min_count=10,
+        vector_size=300,
+        window=10,
+        min_count=3,
         sg=1,
         hs=1,
-        negative=10,
+        negative=15,
+        epochs=20,
+        alpha=0.025,
+        min_alpha=0.0001,
         workers=mp.cpu_count()
     )
     print("Model training complete")
@@ -39,8 +43,9 @@ def train_word2vec(sentences):
 def test_model(model, test_words):
     """Test model with some example words."""
     print("\nTesting model with example words:")
-    for word in test_words.lower():
+    for word in test_words:
         try:
+            word = word.lower()
             similar_words = model.wv.most_similar(word)
             print(f"\nMost similar to {word}:")
             for w, score in similar_words:
@@ -50,7 +55,11 @@ def test_model(model, test_words):
 
 def main():
 
-    sentences_with_ngrams = load_sentences("lyrics.txt")
+    # 1. Start time
+    start_time = time.time()
+
+    # 2. Load sentences with bigrams
+    sentences_with_ngrams = load_sentences("../Step 2.2 Create Bi-and Trigrams for Word2Vec/2_2-sentences_with_ngrams.txt")
 
     # 3. Train model
     model = train_word2vec(sentences_with_ngrams)
@@ -60,9 +69,12 @@ def main():
     print(f"Vocabulary size: {len(model.wv.key_to_index)}")
     
     # 5. Test the model
-    test_words = ['kollegah', 'haftbefehl', 'rapper']  # Add relevant test words
-    test_bigrams = ['sun_diego', 'kool_savas', 'mc_bomber','mc_fitti', 'farid_bang', 'juse_ju', 'yung_hurn' , 'og_keemo', 'og_pezo', 'mr._sample', 'mr._rap', 'funkvater_frank', 'private_paul', 'jan_delay']  # Add relevant bigrams
+    test_words = ['kollegah', 'haftbefehl', 'hiob', 'bushido', 'azudemsk', 'shneezin', 'prezident']  # Add relevant test words
+    test_bigrams = ['sun_diego', 'kool_savas', 'mc_bomber','mc_fitti', 'farid_bang', 'juse_ju', 'yung_hurn' , 'og_keemo', 'og_pezo', 'mr._sample', 'mr._rap', 'funkvater_frank', 'private_paul', 'jan_delay', 'tj_beastboy', 'sugar_mmfk']  # Add relevant bigrams
+    test_trigrams = ['eins_acht_sieben', 'audio88_und_yassin', 'Maedness_und_Doell', 'bass_sultan_hengst', 'k._i._z']
     test_model(model, test_words)
+    test_model(model, test_bigrams)
+    test_model(model, test_trigrams)
     
     # 6. Save the model
     model.save("word2vec_model.model")

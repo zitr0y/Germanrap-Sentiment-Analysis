@@ -11,9 +11,11 @@ __pycache__/
 *.gguf
 .claudeignore
 .venv/
-2-processed_sentences.txt
+2_1-processed_sentences.txt
 1-posts/*
 1-posts.zip
 *.txt
 *.zip
 *.png
+*.model
+*.npy
