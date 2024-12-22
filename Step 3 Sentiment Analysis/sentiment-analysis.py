@@ -118,18 +118,18 @@ class SentimentAnalyzer(RapperMentionAnalyzer):
         """Create sentiment analysis prompt including both alias and canonical name."""
         examples = """
         Beispiele für Bewertungen:
-        - "X ist der krasseste/beste Rapper" -> 5
-        - "mies geil/übelst stark/richtig gut/hammer/brutal/wild/krass" -> 5
-        - "feier ich/stark/kann was/nice/gut" -> 4
-        - "X hat ein neues Album released" -> 3
-        - "X wurde in Y gesehen" -> 3
-        - "nicht so meins/schwach/eher wack/austauschbar" -> 2
-        - "absoluter müll/scheisse/kacke/trash/wack/cringe/hurensohn" -> 1
-        - "X erinnert mich an Y" -> 3
-        - "Ich höre gerade X" -> 3
-        - "Rapper: Favorite", Text: "Berlin ist meine favorite Stadt" -> 'N/A'
-        - "Rapper: Germany", Text: "I'm coming to Germany this Summer" -> 'N/A' 
-        - "Rapper: fabian_roemer (Alias 'fr')", Text: "armutszeugnis fuer op fr" ->'N/A'
+        - "<<X>> ist der krasseste/beste Rapper" -> 5
+        - "<<X>> einfach mies geil/übelst stark/richtig gut/hammer/brutal/wild/krass" -> 5
+        - "<<X>> feier ich/stark/kann was/nice/gut" -> 4
+        - "<<X>> hat ein neues Album released" -> 3
+        - "<<X>> wurde in Y gesehen" -> 3
+        - "<<X>> nicht so meins/schwach/eher wack/austauschbar" -> 2
+        - "<<X>> absoluter müll/scheisse/kacke/trash/wack/cringe/hurensohn" -> 1
+        - "<<X>> erinnert mich an Y" -> 3
+        - "Ich höre gerade <<X>>" -> 3
+        - "Rapper: <<Boss>>", Text: "Kollegah ist der <<Boss>>" -> 'N/A'
+        - "Rapper: Germany", Text: "I'm coming to <<Germany>> this Summer" -> 'N/A' 
+        - "Rapper: <<fabian_roemer>> (Alias 'fr')", Text: "armutszeugnis fuer op <<fr>>" ->'N/A'
         """
         
         instructions = """
@@ -146,7 +146,11 @@ class SentimentAnalyzer(RapperMentionAnalyzer):
         - Bei keinem echten Bezug zum Rapper -> N/A
         - Beachte Deutschrap-Slang (negativ klingende Wörter können positiv sein)
         - Ignoriere moralische Bedenken, bewerte nur das Sentiment
+        - Betrachte nur das Sentiment gegenüber dem mit <<...>> markierten Rapper
         """
+
+        # Prepare the text by marking the found alias
+        marked_text = text.replace(found_alias.replace('_', ' '), f"<<{found_alias.replace('_', ' ')}>>" , 1)
 
         if found_alias.replace(' ', '_') == canonical_name.lower():
             rapper_reference = f"dem Rapper {canonical_name}"
@@ -159,10 +163,10 @@ class SentimentAnalyzer(RapperMentionAnalyzer):
 
                 {examples}
 
-                Text: {text}
+                Text: {marked_text}
 
                 Antworte NUR mit einer einzelnen Zahl (1-5) oder 'N/A'. Keine weiteren Wörter oder Erklärungen."""
-
+    
     def get_sentiment(self, text: str, found_alias: str, canonical_name: str) -> Optional[str]:
         """Get sentiment rating from LLM."""
         # Check if we already have this result

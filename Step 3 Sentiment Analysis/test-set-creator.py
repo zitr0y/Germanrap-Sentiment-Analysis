@@ -338,9 +338,11 @@ class TestSetCreator:
         # Find the position of the alias in the text (case insensitive)
         idx = text.lower().find(alias.lower())
         if idx != -1:
-            # Insert text in parts and apply tag
+            # Insert text in parts with both highlighting and <<>> markup
             self.text_widget.insert(tk.END, text[:idx])
+            self.text_widget.insert(tk.END, '<<')  # Add opening markup
             self.text_widget.insert(tk.END, text[idx:idx+len(alias)], 'highlight')
+            self.text_widget.insert(tk.END, '>>')  # Add closing markup
             self.text_widget.insert(tk.END, text[idx+len(alias):])
         else:
             self.text_widget.insert(tk.END, text)
@@ -390,7 +392,7 @@ def main():
             output_path='test_set.json',
             seed=42,
             target_samples=200,
-            batch_size=500
+            batch_size=550
         )
     except Exception as e:
         print(f"Error in main: {str(e)}")
