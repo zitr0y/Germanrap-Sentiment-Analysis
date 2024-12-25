@@ -44,55 +44,50 @@ class LLMEvaluator:
         examples = """
         Beispiele:
         Sehr positiv (5):
-        - "<<X>> ist der beste Rapper" -> 5
-        - "<<X>> ist krass/brutal/hammer/zu gut" -> 5
+        - "<<X>> ist der beste Rapper"
+        - "<<X>> ist krass/brutal/hammer"
+        - "<<X>> absoluter ehrenmove/bestes album des jahres"
 
         Eher positiv (4):
-        - "<<X>> feier ich/macht stabile Musik" -> 4
-        - "<<X>> macht seit Jahren gute Sachen" -> 4
+        - "<<X>> feier ich/macht stabile Musik"
+        - "<<X>> macht seit Jahren gute Sachen"
+        - "bin kein fan aber <<X>> hat skills"
 
-        Neutral (3):
-        - "<<X>> hat neues Album released" -> 3
-        - "<<X>> wurde gesehen bei/in Y" -> 3
-        - "Ich höre <<X>>, <<Y>>, <<Z>>" -> 3
-        - "<<X>> erinnert an Y" -> 3
+        Neutral/Unklar (3):
+        - "<<X>> hat neues Album released"
+        - "<<X>> wurde gesehen bei/in Y" 
+        - "Ich höre <<X>>, <<Y>>, <<Z>>"
+        - "<<X>> macht halt sein Ding"
 
         Eher negativ (2):
-        - "<<X>> ist nicht so meins" -> 2
-        - "früher war <<X>> besser" -> 2
+        - "<<X>> ist nicht so meins"
+        - "früher war <<X>> besser"
+        - "<<X>> wird überbewertet"
 
         Sehr negativ (1):
-        - "<<X>> ist müll/ ein hurensohn" -> 1
-        - "<<X>> sollte aufhören" -> 1
-
-        Kein Bezug (N/A): 
-        - er ist der "<<boss>>" (meint nicht den rapper boss) -> N/A
-        - "ich bring mein merch auf <<level>>" (meint nicht den rapper level) -> N/A
+        - "<<X>> ist müll/hurensohn"
+        - "<<X>> sollte aufhören"
+        - "<<X>> komplett peinlich/whack"
         """
         
         instructions = """
         Regeln:
-        - Antworte NUR mit 1, 2, 3, 4, 5 oder N/A
-        - Bei Unsicherheit -> 3
-        - Wenn nicht der Rapper gemeint ist -> N/A
-        - Slang beachten (negative wörter können positiv gemeint sein)
-        - Nur den markierten Rapper <<X>> bewerten
+        - Wenn der Kontext unklar ist -> 3
+        - Slang beachten (negativ kann positiv sein)
+        - Nur den markierten Rapper bewerten
+        - Auch indirekte Aussagen bewerten ("der Track ist whack" = negativ)
         """
 
         marked_text = text.replace(found_alias.replace('_', ' '), f"<<{found_alias.replace('_', ' ')}>>" , 1)
-
-        if found_alias.replace(' ', '_') == canonical_name.lower():
-            rapper_reference = f"dem Rapper {canonical_name}"
-        else:
-            rapper_reference = f"{found_alias.replace('_', ' ')} (vermuteter Alias des Rappers {canonical_name})"
             
-        return f"""Bewerte das Sentiment zu {rapper_reference} im Text: {marked_text}
+        return f"""Bewerte das Sentiment zu {found_alias} im Text: {marked_text}
 
                 {instructions}
 
                 {examples}
 
-                Antworte NUR mit einer Zahl (1-5) oder 'N/A'."""    
+                Antworte NUR mit einer Zahl von 1-5."""
+
     def _parse_response(self, response: str) -> str:
         """Parse and validate model response with improved handling."""
         response = response.upper().strip()
@@ -274,19 +269,19 @@ class LLMEvaluator:
         df.loc[mask, 'difference'] = abs(df.loc[mask, 'human_numeric'] - df.loc[mask, 'model_numeric'])
         large_mismatches = df[df['difference'] >= 2].sort_values('difference', ascending=False)
         
-        print("\nInteresting misclassifications:")
+        #print("\nInteresting misclassifications:")
         
-        print("\nN/A Misclassifications:")
-        for _, row in na_mismatches.head(max_examples).iterrows():
-            print(f"\nText: {row['text']}")
-            print(f"Found alias: {row['found_alias']}")
-            print(f"Human: {row['human_sentiment']} | Model: {row['model_sentiment']}")
+        #print("\nN/A Misclassifications:")
+        #for _, row in na_mismatches.head(max_examples).iterrows():
+        #    print(f"\nText: {row['text']}")
+        #    print(f"Found alias: {row['found_alias']}")
+        #    print(f"Human: {row['human_sentiment']} | Model: {row['model_sentiment']}")
             
-        print("\nLarge Sentiment Misclassifications (diff ≥ 2):")
-        for _, row in large_mismatches.head(max_examples).iterrows():
-            print(f"\nText: {row['text']}")
-            print(f"Found alias: {row['found_alias']}")
-            print(f"Human: {row['human_sentiment']} | Model: {row['model_sentiment']}")
+        #print("\nLarge Sentiment Misclassifications (diff ≥ 2):")
+        #for _, row in large_mismatches.head(max_examples).iterrows():
+        #    print(f"\nText: {row['text']}")
+        #    print(f"Found alias: {row['found_alias']}")
+        #    print(f"Human: {row['human_sentiment']} | Model: {row['model_sentiment']}")
             
         return {
             'na_mismatches': len(na_mismatches),
@@ -305,6 +300,9 @@ class LLMEvaluator:
             results = model_results['samples']
             df = pd.DataFrame(results)
             
+            # Convert N/A to 3 in ground truth
+            df['human_sentiment'] = df['human_sentiment'].replace('N/A', '3')
+            
             print(f"\nDebug - Model {model_name} results:")
             print(f"Total samples: {len(df)}")
             print("Response distribution:")
@@ -312,23 +310,38 @@ class LLMEvaluator:
             print("\nTrue label distribution:")
             print(df['human_sentiment'].value_counts())
             
-            # Include N/A as valid category, only filter ERROR responses
-            valid_results = df[df['model_sentiment'] != 'ERROR'].copy()
+            def convert_to_numeric(x):
+                try:
+                    return pd.to_numeric(x)
+                except:
+                    return None
+                    
+            numeric_model = df['model_sentiment'].apply(convert_to_numeric)
+            numeric_human = df['human_sentiment'].apply(convert_to_numeric)
+            
+            valid_results = df[
+                (df['model_sentiment'] != 'ERROR') & 
+                (df['model_sentiment'] != 'N/A') & 
+                numeric_model.notna() &
+                numeric_human.notna()
+            ].copy()
+            
+            if len(valid_results) == 0:
+                continue
+                
+            # Ensure numeric values for metrics calculation
+            valid_results['model_sentiment'] = valid_results['model_sentiment'].astype(float).astype(str)
+            valid_results['human_sentiment'] = valid_results['human_sentiment'].astype(float).astype(str)
             
             print(f"\nValid samples for {model_name}: {len(valid_results)}/{len(df)}")
             if len(valid_results) > 0:
                 print("Valid response distribution:")
                 print(valid_results['model_sentiment'].value_counts())
             
-            if len(valid_results) == 0:
-                continue
-                
-            # Calculate metrics including N/A
             report = classification_report(
                 valid_results['human_sentiment'],
                 valid_results['model_sentiment'],
-                output_dict=True,
-                labels=['1', '2', '3', '4', '5', 'N/A']
+                output_dict=True
             )
             
             disagreement_stats = self.calculate_weighted_disagreement(df)
@@ -341,9 +354,6 @@ class LLMEvaluator:
                 'weighted_f1': report['weighted avg']['f1-score'],
                 'samples': len(valid_results),
                 'errors': len(df[df['model_sentiment'] == 'ERROR']),
-                'na_accuracy': report['N/A']['f1-score'] if 'N/A' in report else 0,
-                'avg_time_per_sample': model_results['performance_metrics']['avg_time_per_sample'],
-                'estimated_hours_400k': model_results['performance_metrics']['estimated_total_time'] / 3600,
             }
             
             if disagreement_stats:
@@ -467,7 +477,7 @@ def main():
     models = [
         #'llama3.1',
         #'germanrapllm_Q8_v2',
-        'qwen2.5:3b',
+        #'qwen2.5:3b',
         #'wizardlm2',
         #'mixtral',
         #'qwen2.5:7b',
