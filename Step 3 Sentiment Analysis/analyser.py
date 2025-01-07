@@ -82,8 +82,8 @@ class SentimentAnalysisResults:
         return set(mention_counts.head(n).index)
     
     def calculate_composite_score(self, stats: pd.DataFrame,
-                                mention_weight: float = 0.4, 
-                                sentiment_weight: float = 0.4, 
+                                mention_weight: float = 0.1, 
+                                sentiment_weight: float = 0.7, 
                                 std_weight: float = 0.2) -> pd.Series:
         """
         Calculate composite score considering mentions, sentiment and std deviation.
@@ -269,7 +269,7 @@ class SentimentAnalysisResults:
 
         return fig
 
-    def create_visualizations(self, top_n: int = 200):
+    def create_visualizations(self, top_n: int = 50):
         """Create various visualizations using Plotly."""
         timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
 
@@ -374,7 +374,109 @@ class SentimentAnalysisResults:
         # 5. Timeline Analysis
         fig_timeline = self.create_timeline_analysis(top_n=5)  # Keep this at 5 to avoid overcrowding
         fig_timeline.write_html(self.output_dir / f'timeline_analysis_{timestamp}.html')
+    
+    def get_overall_sentiment_distribution(self) -> pd.DataFrame:
+        """Calculate the overall sentiment distribution across all rappers."""
+        # Get overall counts
+        overall_dist = self.df['sentiment'].value_counts().sort_index()
+        
+        # Calculate percentages
+        total_ratings = len(self.df)
+        overall_dist_pct = (overall_dist / total_ratings * 100).round(2)
+        
+        # Combine counts and percentages
+        distribution = pd.DataFrame({
+            'count': overall_dist,
+            'percentage': overall_dist_pct
+        })
+        
+        return distribution
 
+    def plot_overall_sentiment_distribution(self) -> go.Figure:
+        """Create a visualization of the overall sentiment distribution."""
+        distribution = self.get_overall_sentiment_distribution()
+        
+        # Create figure with secondary y-axis
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        
+        # Add bar chart for counts
+        fig.add_trace(
+            go.Bar(
+                x=distribution.index,
+                y=distribution['count'],
+                name="Count",
+                marker_color='rgb(55, 83, 109)',
+                opacity=0.7,
+            ),
+            secondary_y=False,
+        )
+        
+        # Add line chart for percentages
+        fig.add_trace(
+            go.Scatter(
+                x=distribution.index,
+                y=distribution['percentage'],
+                name="Percentage",
+                mode='lines+markers',
+                marker=dict(size=10),
+                line=dict(width=3, color='rgb(200, 50, 50)'),
+                yaxis='y2'
+            ),
+            secondary_y=True,
+        )
+        
+        # Update layout
+        fig.update_layout(
+            title="Overall Sentiment Distribution",
+            xaxis_title="Sentiment Rating",
+            template='plotly_white',
+            height=600,
+            showlegend=True,
+            legend=dict(
+                yanchor="top",
+                y=0.99,
+                xanchor="right",
+                x=0.99
+            ),
+            bargap=0.2
+        )
+        
+        # Update yaxis labels
+        fig.update_yaxes(title_text="Number of Ratings", secondary_y=False)
+        fig.update_yaxes(title_text="Percentage of Total (%)", secondary_y=True)
+        
+        return fig
+
+    def analyze_overall_sentiment(self) -> dict:
+        """Analyze overall sentiment statistics."""
+        distribution = self.get_overall_sentiment_distribution()
+        
+        # Calculate additional statistics
+        stats = {
+            'total_ratings': len(self.df),
+            'mean_sentiment': self.df['sentiment'].mean().round(3),
+            'median_sentiment': self.df['sentiment'].median(),
+            'std_sentiment': self.df['sentiment'].std().round(3),
+            'distribution': distribution.to_dict(),
+            'most_common_rating': distribution['count'].idxmax(),
+            'most_common_count': distribution['count'].max(),
+            'most_common_percentage': distribution['percentage'].max().round(2)
+        }
+        
+        # Calculate polarity ratios (excluding neutral)
+        non_neutral = self.df[self.df['sentiment'] != 3]
+        positive_ratings = non_neutral[non_neutral['sentiment'] > 3]['sentiment'].count()
+        negative_ratings = non_neutral[non_neutral['sentiment'] < 3]['sentiment'].count()
+        total_non_neutral = positive_ratings + negative_ratings
+        
+        stats.update({
+            'positive_ratio': (positive_ratings / total_non_neutral * 100).round(2) if total_non_neutral > 0 else 0,
+            'negative_ratio': (negative_ratings / total_non_neutral * 100).round(2) if total_non_neutral > 0 else 0,
+            'neutral_percentage': (self.df[self.df['sentiment'] == 3]['sentiment'].count() / len(self.df) * 100).round(2)
+        })
+        
+        return stats
+    
     def generate_report(self, min_mentions: int = 5, save_to_csv: bool = True):
         """Generate a comprehensive report of all analyses."""
         timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
@@ -431,6 +533,24 @@ class SentimentAnalysisResults:
         print(high_volume_analysis['without_neutral']['highest_composite'])
         print("\n" + "="*50 + "\n")
         
+        # Get overall sentiment distribution
+        overall_dist = self.get_overall_sentiment_distribution()
+        print("Overall Sentiment Distribution:")
+        print(overall_dist)
+
+        # Get comprehensive statistics
+        overall_stats = self.analyze_overall_sentiment()
+        print("\nOverall Sentiment Statistics:")
+        print(f"Total ratings: {overall_stats['total_ratings']}")
+        print(f"Mean sentiment: {overall_stats['mean_sentiment']}")
+        print(f"Positive ratio: {overall_stats['positive_ratio']}%")
+        print(f"Negative ratio: {overall_stats['negative_ratio']}%")
+        print(f"Neutral percentage: {overall_stats['neutral_percentage']}%")
+
+        # Create and save visualization
+        fig = self.plot_overall_sentiment_distribution()
+        fig.write_html("overall_sentiment_distribution.html")
+
         if save_to_csv:
             # Save results to CSV files in output directory
             self.get_most_mentioned(50, min_mentions).to_csv(self.output_dir / f'most_mentioned_{timestamp}.csv')
@@ -462,7 +582,7 @@ def main():
         dist_top_n=10,                 # Number of rappers in distribution analysis
         high_volume_threshold=300      # Minimum mentions for high-volume analysis
     )
-    results = analyzer.generate_report(min_mentions=20)
+    results = analyzer.generate_report(min_mentions=50)
 
 if __name__ == "__main__":
     main()

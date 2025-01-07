@@ -477,20 +477,20 @@ def main():
     models = [
         #'llama3.1',
         #'germanrapllm_Q8_v2',
-        #'qwen2.5:3b',
+        'qwen2.5:3b',
         #'wizardlm2',
         #'mixtral',
         #'qwen2.5:7b',
         #'mistral',
         #'gemma:7b',
         #'aya-expanse:8b',
-        'granite3.1-dense:2b',
+        #'granite3.1-dense:2b',
         #'qwen2.5:1.5b',
         #'granite3.1-moe:1b',
         #'granite3.1-moe:3b',
     ]
     
-    evaluator = LLMEvaluator('test_set.json', models, temperature=0.3)
+    evaluator = LLMEvaluator('test_set.json', models, temperature=0.2)
     evaluator.evaluate_all_models(max_samples=200)
     metrics_df = evaluator.save_results()
     print("\nModel Performance Metrics:")
